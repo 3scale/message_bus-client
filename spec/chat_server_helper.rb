@@ -13,27 +13,24 @@ MessageBus.config[:backend] = :memory
 require File.join(chat_example_path, 'chat')
 
 RSpec.configure do |config|
-  config.around(:all) do |example|
+  config.before(:suite) do |example|
     Thread.abort_on_exception = true
     Chat.set :port, 9292
-    server = Thread.new { Chat.run! }
+
+    Thread.new { Chat.run! }
 
     retries = 0
     begin
       Socket.tcp('localhost', 9292, connect_timeout: 1)
     rescue Errno::ECONNREFUSED
       if (retries = retries.succ) < 10
-        warn 'waiting for chat server to start on localhost:9292'
         sleep 1
         retry
       end
     end
+  end
 
-    example.run
-
-    at_exit do
-      Chat.quit!
-      server.kill
-    end
+  config.after(:suite) do
+    Chat.quit!
   end
 end
